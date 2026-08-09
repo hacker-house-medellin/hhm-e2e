@@ -1,0 +1,15 @@
+[package]
+name = "hhm-e2e-smoke"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+description = "HTTP and WebSocket smoke checks for Hacker House Medellín test services"
+
+[dependencies]
+anyhow = "1"
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+url = "2"

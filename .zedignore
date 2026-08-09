@@ -1,0 +1,11 @@
+.git/
+node_modules/
+rust-smoke/target/
+playwright-report/
+test-results/
+.selenium-manager/
+.vendor/
+.env
+.env.*
+!.env.example
+*.log

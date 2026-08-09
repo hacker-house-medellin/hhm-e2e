@@ -1,0 +1,9 @@
+node_modules/
+playwright-report/
+test-results/
+.selenium-manager/
+.vendor/
+rust-smoke/target/
+.env
+.env.*
+!.env.example

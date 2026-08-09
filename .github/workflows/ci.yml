@@ -1,0 +1,69 @@
+name: E2E contract matrix
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:offline
+
+  browser-matrix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [playwright, puppeteer, selenium]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.18.0
+          cache: npm
+      - run: npm ci
+      - if: matrix.runner == 'playwright'
+        run: npx playwright install --with-deps chromium
+      - if: matrix.runner == 'selenium'
+        run: google-chrome --version
+      - run: npm run test:${{ matrix.runner }}
+
+  rust-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Rust quality components
+        run: rustup component add rustfmt clippy
+      - name: Format
+        run: cargo fmt --manifest-path rust-smoke/Cargo.toml --all -- --check
+      - name: Check
+        run: cargo check --manifest-path rust-smoke/Cargo.toml --locked --all-targets
+      - name: Clippy
+        run: cargo clippy --manifest-path rust-smoke/Cargo.toml --locked --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --manifest-path rust-smoke/Cargo.toml --locked

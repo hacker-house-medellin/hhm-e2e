@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "suite": "hhm-e2e",
+  "default_mode": "offline-fixture",
+  "scenarios": [
+    {
+      "id": "stays",
+      "required": true,
+      "live_credentials_required": false
+    },
+    {
+      "id": "rooms",
+      "required": true,
+      "live_credentials_required": false
+    },
+    {
+      "id": "events",
+      "required": true,
+      "live_credentials_required": false
+    },
+    {
+      "id": "projects",
+      "required": true,
+      "live_credentials_required": false
+    },
+    {
+      "id": "memberships",
+      "required": true,
+      "live_credentials_required": false
+    },
+    {
+      "id": "authorization",
+      "required": true,
+      "live_credentials_required": false
+    }
+  ]
+}
