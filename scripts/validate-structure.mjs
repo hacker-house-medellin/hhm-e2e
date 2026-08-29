@@ -33,9 +33,18 @@ for (const [name, version] of Object.entries({
 }
 
 const manifest = readFileSync(".zpkg.toml", "utf8");
-for (const suffix of ["clients", "interfaces", "libs", "cli"]) {
-  const identity = `"${org}/${prefix}-${suffix}"`;
-  if (!manifest.includes(identity)) throw new Error(`missing Zed dependency ${identity}`);
+for (const identity of [
+  `org = "${org}"`,
+  `name = "${repo}"`,
+  `url = "https://github.com/${org}/${repo}"`,
+]) {
+  if (!manifest.includes(identity)) throw new Error(`missing canonical Zed identity ${identity}`);
+}
+for (const suffix of ["clients", "interfaces", "libs", "lib-core", "cli"]) {
+  const unpublished = `"${org}/${prefix}-${suffix}"`;
+  if (manifest.includes(unpublished)) {
+    throw new Error(`unpublished Zed dependency must not be declared: ${unpublished}`);
+  }
 }
 if (manifest.includes(`${org}-${repo}`)) throw new Error("long-name duplicate identity detected");
 

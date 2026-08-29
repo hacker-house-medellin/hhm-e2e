@@ -1,12 +1,29 @@
 [package]
-name = "hacker-house-medellin/hhm-e2e"
+org = "hacker-house-medellin"
+name = "hhm-e2e"
 version = "0.1.0"
+description = "End-to-end contract and browser harness for Hacker House Medellín"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/hacker-house-medellin/hhm-e2e"
 
 [install]
+adapter = "none"
 dir = ".vendor/.zed"
 
 [dependencies]
-"hacker-house-medellin/hhm-clients" = "^0.1.0"
-"hacker-house-medellin/hhm-interfaces" = "^0.1.0"
-"hacker-house-medellin/hhm-libs" = "^0.1.0"
-"hacker-house-medellin/hhm-cli" = "^0.1.0"
+# Native lockfiles remain authoritative until the component packages are
+# published to the Zed registry.
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", "node_modules/**", "target/**", ".zed/**", ".vendor/.zed/**"]
+
+[targets.repository]
+dir = "."
+
+[scripts]
+test = "npm run test:offline"
