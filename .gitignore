@@ -8,3 +8,9 @@ rust-smoke/target/
 .env
 .env.*
 !.env.example
+# DEN-3956: ignore agent scratch worktrees and temp dirs (fleet policy)
+tmp/
+temp/
+.tmp/
+tmp/worktrees/
+**/tmp/worktrees/
