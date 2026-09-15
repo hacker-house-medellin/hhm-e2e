@@ -9,8 +9,6 @@ rust-smoke/target/
 !.env.example
 
 # Repository-local temporary data and authorized Git worktrees
-tmp
-temp
 tmp/worktrees
 temp/worktrees
 # DEN-3956: ignore agent scratch worktrees and temp dirs (fleet policy)
@@ -19,3 +17,6 @@ temp/
 .tmp/
 tmp/worktrees/
 **/tmp/worktrees/
+
+# machine-local symlink to ORESoftware/my-ai AGENTS.md; never committed
+.ores/
