@@ -1,7 +1,14 @@
 import { createServer } from "node:http";
+import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 const suite = "hhm-e2e";
+const scenarioContract = JSON.parse(readFileSync(new URL("../../contracts/scenarios.json", import.meta.url), "utf8"));
+if (scenarioContract.suite !== suite || scenarioContract.default_mode !== "offline-fixture" ||
+    !Array.isArray(scenarioContract.scenarios) ||
+    scenarioContract.scenarios.some((entry) => entry.live_credentials_required !== false)) {
+  throw new Error("unsafe offline scenario contract");
+}
 
 export async function startFixtureServer(port = 0) {
   const server = createServer((request, response) => {
@@ -9,6 +16,16 @@ export async function startFixtureServer(port = 0) {
     if (request.url === "/healthz") {
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ ok: true, suite }));
+      return;
+    }
+    if (request.url === "/scenarios") {
+      if (request.method !== "GET") {
+        response.writeHead(405, { "allow": "GET", "content-type": "application/json" });
+        response.end(JSON.stringify({ error: "method_not_allowed" }));
+        return;
+      }
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(scenarioContract));
       return;
     }
     if (request.url === "/contracts") {
