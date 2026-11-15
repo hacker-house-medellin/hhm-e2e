@@ -10,6 +10,7 @@
   "scripts": {
     "validate": "node scripts/validate-structure.mjs",
     "test:contracts": "node --test tests/contracts/*.test.mjs",
+    "check:atto": "node scripts/check-atto-contracts.mjs",
     "test:offline": "npm run validate && npm run test:contracts",
     "test:playwright": "playwright test",
     "test:puppeteer": "node --test tests/browser/puppeteer/*.test.mjs",

@@ -67,3 +67,56 @@ jobs:
         run: cargo clippy --manifest-path rust-smoke/Cargo.toml --locked --all-targets -- -D warnings
       - name: Test
         run: cargo test --manifest-path rust-smoke/Cargo.toml --locked
+
+  atto-cross-repo-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22.18.0
+      - name: Verify the exact e2e PR head and policy source
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git rev-parse 'HEAD^{tree}'
+          git rev-parse HEAD:scripts/check-atto-contracts.mjs
+          git rev-parse HEAD:tests/contracts/atto-admission.test.mjs
+      - name: Anonymous checkout of pinned source PR trees
+        shell: bash
+        env:
+          CLIENT_SHA: 3813f22a60b558e83f5d3ecd08f99b508827e0be
+          INTERFACE_SHA: b13ce5d79209de97f58ef4b52ea3a24232a86d8e
+        run: |
+          set -euo pipefail
+          export GIT_TERMINAL_PROMPT=0
+          mkdir -p "$RUNNER_TEMP/atto-source"
+          git -c credential.helper= clone --depth 1 --single-branch --branch feat/atto-client-contract-20261115 https://github.com/hacker-house-medellin/hhm-clients.git "$RUNNER_TEMP/atto-source/clients"
+          git -c credential.helper= clone --depth 1 --single-branch --branch feat/atto-interface-contracts-20261115 https://github.com/hacker-house-medellin/hhm-interfaces.git "$RUNNER_TEMP/atto-source/interfaces"
+          test "$(git -C "$RUNNER_TEMP/atto-source/clients" rev-parse HEAD)" = "$CLIENT_SHA"
+          test "$(git -C "$RUNNER_TEMP/atto-source/interfaces" rev-parse HEAD)" = "$INTERFACE_SHA"
+          test "$(git -C "$RUNNER_TEMP/atto-source/clients" rev-parse 'HEAD^{tree}')" = "660e72a50c9961db22e3db049ec06766dd486e5d"
+          test "$(git -C "$RUNNER_TEMP/atto-source/interfaces" rev-parse 'HEAD^{tree}')" = "b17abdfd0e3f21e376bda15d730dfb51fd435b27"
+          verify_blob() {
+            local directory="$1" path="$2" expected="$3"
+            local actual
+            actual="$(git -C "$directory" rev-parse "HEAD:$path")"
+            test "$actual" = "$expected" || { echo "unexpected blob: $path" >&2; return 1; }
+          }
+          verify_blob "$RUNNER_TEMP/atto-source/clients" clients/atto/src/hhm_client.atto cb70b6c2ff67053cb599b22a0693b51bb9aa9569
+          verify_blob "$RUNNER_TEMP/atto-source/clients" clients/matrix.json ca63517671c588d6bf02a8e65d08692e6bc5beb0
+          verify_blob "$RUNNER_TEMP/atto-source/clients" clients/sdk-matrix.json d377e8071fff9b8d9301a8e2c3ea9d6b4fafdce5
+          verify_blob "$RUNNER_TEMP/atto-source/interfaces" bindings/atto/src/visitor_access.atto 9f5f73f3893559c17e8f0fd04d263ca6d1d25a7a
+          verify_blob "$RUNNER_TEMP/atto-source/interfaces" bindings/atto/src/reservation_status.atto ec127a05aa1ac50a6df289af474a9b1f3b748e76
+          verify_blob "$RUNNER_TEMP/atto-source/interfaces" openapi/openapi.json 13312aa10e5ec3c47d1ec33d772ddde984e79af4
+          verify_blob "$RUNNER_TEMP/atto-source/interfaces" schemas/reservation.json 314c39f4b5904048890bc73704e113b26dab730e
+      - name: Check real Atto source contract parity (no Atto execution)
+        run: node scripts/check-atto-contracts.mjs "$RUNNER_TEMP/atto-source/clients" "$RUNNER_TEMP/atto-source/interfaces"
+
