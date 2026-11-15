@@ -68,7 +68,7 @@ jobs:
       - name: Test
         run: cargo test --manifest-path rust-smoke/Cargo.toml --locked
 
-atto-cross-repo-contracts:
+  atto-cross-repo-contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
