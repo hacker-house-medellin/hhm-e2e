@@ -28,7 +28,8 @@ function equal(actual, expected, label) {
 const DESCRIPTOR = /\bpub\s+fnc\s+([a-z][a-z0-9_]*)\s*\(\s*\)\s*:\s*string\s*\{\s*return\s+"([^"\r\n]+)";\s*\}/g;
 
 export function parse_atto_descriptors(source) {
-  const clean = source.replace(/\/\/[^\r\n]*/g, '');
+  const clean = source.replace(/"(?:\\.|[^"\\])*"|\/\/[^\r\n]*/g,
+    piece => piece.startsWith('//') ? '' : piece);
   const matches = [...clean.matchAll(DESCRIPTOR)];
   const residual = clean.replace(DESCRIPTOR, '').trim();
   if (residual.length !== 0 || matches.length === 0) {
@@ -73,7 +74,17 @@ export function verify_atto_surfaces(clients_root, interfaces_root) {
   for (const [name, path] of Object.entries(VISITOR_ROUTES)) {
     equal(visitor.get(`${name}_path`), path, name + ' path');
     equal(visitor.get(`${name}_method`), 'POST', name + ' method');
-    if (!openapi.paths?.[path]?.post) throw new Error(`missing OpenAPI POST: ${path}`);
+    const operation = openapi.paths?.[path]?.post;
+    if (!operation || typeof operation !== 'object' || Array.isArray(operation)) {
+      throw new Error('missing OpenAPI POST: ' + path);
+    }
+    if (typeof operation.operationId !== 'string' || !operation.operationId.trim()) {
+      throw new Error('missing OpenAPI operationId: ' + path);
+    }
+    if (!operation.requestBody?.content?.['application/json'] ||
+        !operation.responses || Object.keys(operation.responses).length === 0) {
+      throw new Error('incomplete OpenAPI POST request/response: ' + path);
+    }
   }
 
   const statuses = parse_atto_descriptors(load(interfaces_root, 'bindings/atto/src/reservation_status.atto'));
@@ -82,6 +93,9 @@ export function verify_atto_surfaces(clients_root, interfaces_root) {
   if (schema.properties?.status?.type !== 'string' || !Array.isArray(allowed) || allowed.length === 0) {
     throw new Error('missing reservation status enum');
   }
+  const canonical = ['requested', 'confirmed', 'checked_in', 'completed', 'cancelled'];
+  if (allowed.length !== canonical.length) throw new Error('reservation status enum length drift');
+  equal([...new Set(allowed)].sort().join(','), canonical.slice().sort().join(','), 'reservation status enum');
   inventory(statuses, allowed.map(n => `reservation_${n}`), 'reservation');
   for (const status of allowed) equal(statuses.get(`reservation_${status}`), status, 'reservation status');
 

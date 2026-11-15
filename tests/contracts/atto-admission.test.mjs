@@ -36,7 +36,7 @@ function fixture(run) {
     visitor: write(interfaces, 'bindings/atto/src/visitor_access.atto', Object.entries(VISITOR).map(([name, path]) =>
       fn(`${name}_path`, path) + fn(`${name}_method`, 'POST')).join('\n')),
     status: write(interfaces, 'bindings/atto/src/reservation_status.atto', STATUS.map(s => fn(`reservation_${s}`, s)).join('\n')),
-    openapi: write(interfaces, 'openapi/openapi.json', JSON.stringify({ paths: Object.fromEntries(Object.values(VISITOR).map(p => [p, { post: { operationId: 'fixture' } }])) })),
+    openapi: write(interfaces, 'openapi/openapi.json', JSON.stringify({ paths: Object.fromEntries(Object.values(VISITOR).map(p => [p, { post: { operationId: 'fixture', requestBody: { content: { 'application/json': { schema: { type: 'object' } } } }, responses: { 200: { description: 'ok' } } } }])) })),
     schema: write(interfaces, 'schemas/reservation.json', JSON.stringify({ properties: { status: { type: 'string', enum: STATUS } } })),
   };
   try { run(clients, interfaces, files); } finally { rmSync(root, { recursive: true, force: true }); }
@@ -76,7 +76,7 @@ test('rejects missing visitor OpenAPI POST and reservation status tampering', ()
   delete openapi.paths['/v1/visits/check-in'];
   writeFileSync(files.openapi, JSON.stringify(openapi));
   assert.throws(() => verify_atto_surfaces(clients, interfaces), /missing OpenAPI POST/);
-  writeFileSync(files.openapi, JSON.stringify({ paths: Object.fromEntries(Object.values(VISITOR).map(p => [p, { post: {} }])) }));
+  writeFileSync(files.openapi, JSON.stringify({ paths: Object.fromEntries(Object.values(VISITOR).map(p => [p, { post: { operationId: 'fixture', requestBody: { content: { 'application/json': { schema: { type: 'object' } } } }, responses: { 200: { description: 'ok' } } } }])) }));
   writeFileSync(files.status, readFileSync(files.status, 'utf8').replace('return "cancelled";', 'return "unknown";'));
   assert.throws(() => verify_atto_surfaces(clients, interfaces), /reservation status/);
 }));
@@ -98,3 +98,31 @@ test('the CLI refuses missing checkout roots rather than skipping the gate', () 
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /client and interface roots required/);
 });
+
+test('preserves // inside quoted Atto literals while ignoring real line comments', () => {
+  const source = '// route descriptor\n' + fn('endpoint_path', 'https://example.test/a//b');
+  assert.equal(parse_atto_descriptors(source).get('endpoint_path'), 'https://example.test/a//b');
+  assert.throws(() => parse_atto_descriptors('pub fnc bad_path(): string { return "x"; } /* unsupported */'), /unsupported/);
+});
+
+test('rejects coordinated reservation enum/source drift and duplicate enum entries', () => fixture((clients, interfaces, files) => {
+  const original = JSON.parse(readFileSync(files.schema, 'utf8'));
+  original.properties.status.enum.push('revoked');
+  writeFileSync(files.schema, JSON.stringify(original));
+  writeFileSync(files.status, readFileSync(files.status, 'utf8') + fn('reservation_revoked', 'revoked'));
+  assert.throws(() => verify_atto_surfaces(clients, interfaces), /reservation status enum/);
+  original.properties.status.enum = ['requested', 'confirmed', 'checked_in', 'completed', 'cancelled', 'cancelled'];
+  writeFileSync(files.schema, JSON.stringify(original));
+  assert.throws(() => verify_atto_surfaces(clients, interfaces), /reservation status enum/);
+}));
+
+test('rejects malformed or incomplete OpenAPI operations even when path and POST exist', () => fixture((clients, interfaces, files) => {
+  const original = JSON.parse(readFileSync(files.openapi, 'utf8'));
+  const path = '/v1/visits/check-in';
+  for (const post of [true, {}, { operationId: 'fixture' }, { operationId: 'fixture', requestBody: { content: { 'application/json': {} } } }]) {
+    const tampered = structuredClone(original);
+    tampered.paths[path].post = post;
+    writeFileSync(files.openapi, JSON.stringify(tampered));
+    assert.throws(() => verify_atto_surfaces(clients, interfaces), /OpenAPI/);
+  }
+}));
