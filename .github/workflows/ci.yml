@@ -102,8 +102,8 @@ jobs:
           git -c credential.helper= clone --depth 1 --single-branch --branch feat/atto-interface-contracts-20261115 https://github.com/hacker-house-medellin/hhm-interfaces.git "$RUNNER_TEMP/atto-source/interfaces"
           test "$(git -C "$RUNNER_TEMP/atto-source/clients" rev-parse HEAD)" = "$CLIENT_SHA"
           test "$(git -C "$RUNNER_TEMP/atto-source/interfaces" rev-parse HEAD)" = "$INTERFACE_SHA"
-          git -C "$RUNNER_TEMP/atto-source/clients" rev-parse 'HEAD^{tree}'
-          git -C "$RUNNER_TEMP/atto-source/interfaces" rev-parse 'HEAD^{tree}'
+          test "$(git -C "$RUNNER_TEMP/atto-source/clients" rev-parse 'HEAD^{tree}')" = "660e72a50c9961db22e3db049ec06766dd486e5d"
+          test "$(git -C "$RUNNER_TEMP/atto-source/interfaces" rev-parse 'HEAD^{tree}')" = "b17abdfd0e3f21e376bda15d730dfb51fd435b27"
           verify_blob() {
             local directory="$1" path="$2" expected="$3"
             local actual
